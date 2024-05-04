@@ -6,46 +6,37 @@ import (
 	"github.com.br/jimmmisss/api/api-cep/internal"
 	"net/http"
 	"strings"
+	"time"
 )
 
-func getCepBrasilHandler(w http.ResponseWriter, r *http.Request) {
-	cep := r.URL.Query().Get("cep")
-	if cep == "" {
-		http.Error(w, "cep is required", http.StatusBadRequest)
-		return
-	}
+func BuscarCep(w http.ResponseWriter, r *http.Request) {
+	cep := r.PathValue("cep")
 	w.Header().Set("Content-Type", "application/json")
 
 	cepCleaned := strings.ReplaceAll(cep, "-", "")
 	cepCleaned = strings.ReplaceAll(cepCleaned, ".", "")
 
-	endereco, err := internal.GetCepBrasilApi(cepCleaned)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	brasilCepChannel := make(chan *internal.BrasilApiModel)
+	viaCepChannel := make(chan *internal.ViaCepModel)
+
+	go internal.GetCepBrasilApi(cep, brasilCepChannel)
+	go internal.GetCepViaCep(cep, viaCepChannel)
+
+	var brasilCep *internal.BrasilApiModel
+	var viaCep *internal.ViaCepModel
+
+	select {
+	case resp := <-brasilCepChannel:
+		fmt.Println("CEP encontrado na API BrasilAPI com melhor performance")
+		brasilCep = resp
+		fmt.Println(brasilCep)
+		json.NewEncoder(w).Encode(brasilCep)
+	case via := <-viaCepChannel:
+		fmt.Println("CEP encontrado na API ViaCep com melhor performance")
+		viaCep = via
+		fmt.Println(viaCep)
+		json.NewEncoder(w).Encode(viaCep)
+	case <-time.After(1 * time.Second):
+		fmt.Println("Tempo limite excedido ao buscar CEP")
 	}
-
-	fmt.Sprintf("Endereço: %v", endereco)
-	json.NewEncoder(w).Encode(endereco)
-}
-
-func getCepViaCepHandler(w http.ResponseWriter, r *http.Request) {
-	cep := r.URL.Query().Get("cep")
-	if cep == "" {
-		http.Error(w, "cep is required", http.StatusBadRequest)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-
-	cepCleaned := strings.ReplaceAll(cep, "-", "")
-	cepCleaned = strings.ReplaceAll(cepCleaned, ".", "")
-
-	endereco, err := internal.GetCepViaCep(cepCleaned)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	fmt.Sprintf("Endereço: %v", endereco)
-	json.NewEncoder(w).Encode(endereco)
 }
