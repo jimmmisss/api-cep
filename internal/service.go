@@ -32,7 +32,8 @@ type ViaCepModel struct {
 
 func GetCepBrasilApi(cep string, channel chan<- *BrasilApiModel) {
 	start := time.Now()
-	endereco, err := http.Get("https://brasilapi.com.br/cep/v1/" + cep)
+
+	endereco, err := http.Get("https://brasilapi.com.br/api/cep/v1/" + cep)
 	if err != nil {
 		fmt.Println("Erro ao criar requisição:", err)
 		channel <- nil
